@@ -35,7 +35,7 @@
     'background:rgba(20,24,32,.55);color:#fff;font-size:11px;opacity:0;transition:.3s}',
     '#cx-win{transform-origin:top right}',
     '#cx-win,#cx-fab{z-index:10030!important}',
-    '@media (max-height:520px){#cx-win{zoom:.82}}',
+    '',
     '@media (max-width:720px){',
     '#menu{align-items:flex-start;overflow-y:auto;background:linear-gradient(180deg,rgba(8,9,11,.94),rgba(8,9,11,.78))}',
     '.menu-inner{width:calc(100% - 24px);margin:12px auto;padding-bottom:28px}',
@@ -46,8 +46,8 @@
     '.foot{margin-top:14px;font-size:11px}',
     '.panel{padding:14px 16px}.panel.wide{width:calc(100vw - 20px);max-height:92vh}',
     '.srow{grid-template-columns:110px 1fr 44px;font-size:13px}',
-    '#cx-win{width:236px;zoom:.86;top:8px;right:8px}',
-    '#cx-fab{top:auto;bottom:196px;right:auto;left:22px}',
+    '#cx-win{width:244px;top:8px;right:8px}',
+    '#cx-fab{top:auto;bottom:200px;right:auto;left:20px;width:62px}',
     '}'
   ].join('');
   document.head.appendChild(style);

@@ -9,7 +9,9 @@
   var cfg = {
     esp: true, box: true, hp: true, name: true, dist: true, line: true, linePos: 'bottom',
     track: true, trackRange: 260, trackPart: 'chest', wallbang: true,
-    infAmmo: false, speed: 1, god: false, show: true
+    infAmmo: true, speed: 1, god: false, show: true,
+    fly: false, flySpeed: 8, under: false, underDepth: 4,
+    superJump: false, jumpMul: 2.2, freeze: false, slowmo: false
   };
   try { cfg = Object.assign(cfg, JSON.parse(localStorage.getItem('sandstorm.assist.v2') || '{}')); } catch (e) {}
   function save() { try { localStorage.setItem('sandstorm.assist.v2', JSON.stringify(cfg)); } catch (e) {} }
@@ -21,7 +23,7 @@
   function buildUI() {
     var style = el('style');
     style.textContent = [
-      '#cx-win{position:fixed;right:14px;top:14px;width:268px;z-index:10030;border-radius:16px;',
+      '#cx-win{position:fixed;right:14px;top:14px;width:268px;z-index:99999;border-radius:16px;',
       'background:rgba(250,251,252,.94);backdrop-filter:blur(26px) saturate(180%);',
       'box-shadow:0 20px 54px rgba(16,20,28,.24),0 1px 0 rgba(255,255,255,.9) inset;',
       'border:1px solid rgba(20,24,32,.10);color:#171a1f;font:500 12px/1.5 -apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;',
@@ -32,7 +34,7 @@
       '#cx-head b{font-size:13px;letter-spacing:.02em}',
       '#cx-head small{color:#8a8f98;font-weight:600;letter-spacing:.08em;margin-left:6px}',
       '#cx-hide{width:30px;height:30px;border-radius:15px;border:0;background:rgba(20,24,32,.06);color:#444;cursor:pointer;font-size:14px}',
-      '.cx-body{padding:8px 14px 14px;max-height:62vh;overflow:auto;overscroll-behavior:contain}',
+      '.cx-body{padding:8px 14px 14px;max-height:calc(88vh - 58px);overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}',
       '.cx-sec{margin:12px 0 4px;font-size:11px;letter-spacing:.1em;color:#8a8f98;font-weight:700}',
       '.cx-line{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0;min-height:34px}',
       '.cx-line label{color:#3a3f47;font-weight:500}',
@@ -40,16 +42,19 @@
       '.cx-sw i{position:absolute;left:2px;top:2px;width:20px;height:20px;border-radius:10px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.18);transition:.16s}',
       '.cx-sw[aria-pressed="true"]{background:#2f6bff}',
       '.cx-sw[aria-pressed="true"] i{left:20px}',
+      '.cx-act{border:0;border-radius:9px;background:#2f6bff;color:#fff;font:600 11px/1 -apple-system;padding:9px 12px;cursor:pointer}',
+      '.cx-tip{font-size:10.5px;line-height:1.5;color:#8a8f98;margin:2px 0 6px}',
       '.cx-seg{display:flex;gap:4px;background:#eceef2;border-radius:9px;padding:3px}',
       '.cx-seg button{border:0;background:transparent;padding:6px 10px;border-radius:7px;font:600 11px/1 -apple-system,sans-serif;color:#5a6068;cursor:pointer}',
       '.cx-seg button[aria-pressed="true"]{background:#fff;color:#14171c;box-shadow:0 1px 2px rgba(0,0,0,.10)}',
       '.cx-range{display:flex;align-items:center;gap:8px;flex:1;justify-content:flex-end}',
       '.cx-range input{width:100px;accent-color:#2f6bff}',
       '.cx-range output{width:40px;text-align:right;color:#6b717a;font-variant-numeric:tabular-nums}',
-      '#cx-esp{position:fixed;inset:0;pointer-events:none;z-index:10010}',
-      '#cx-fab{position:fixed;right:14px;top:16px;z-index:10030;height:40px;padding:0 16px;border-radius:20px;border:0;',
+      '#cx-esp{position:fixed;inset:0;pointer-events:none;z-index:99997}',
+      '#cx-fab{position:fixed;right:14px;top:16px;z-index:99998;width:64px;height:40px;padding:0;border-radius:20px;border:0;',
       'background:rgba(250,251,252,.94);box-shadow:0 8px 24px rgba(0,0,0,.18);color:#171a1f;font:700 12px/40px -apple-system;cursor:pointer}',
-      '#cx-fab.on{display:none}'
+      '#cx-fab.on{display:none}',
+      '@media(max-width:720px){#cx-win{width:252px;right:8px;top:8px;font-size:11.5px}#cx-fab{top:auto;bottom:200px;right:auto;left:20px;width:62px}}'
     ].join('');
     document.head.appendChild(style);
     canvas = el('canvas'); canvas.id = 'cx-esp'; document.body.appendChild(canvas);
@@ -63,8 +68,13 @@
     rows += '<div class="cx-sec">子弹追踪</div>' + sw('track', '追踪') + sw('wallbang', '穿墙') +
       '<div class="cx-line"><label>追踪部位</label><div class="cx-seg" id="cx-part"><button data-p="head">头部</button><button data-p="chest">胸部</button></div></div>' +
       '<div class="cx-line"><label>追踪距离</label><div class="cx-range"><input id="cx-trackrange" type="range" min="40" max="500" step="10"><output id="cx-trackrange-v"></output></div></div>';
-    rows += '<div class="cx-sec">内存</div>' + sw('infAmmo', '无限弹药') + sw('god', '无敌') +
-      '<div class="cx-line"><label>移动速度</label><div class="cx-range"><input id="cx-speed" type="range" min="1" max="5" step=".1"><output id="cx-speed-v"></output></div></div>';
+    rows += '<div class="cx-sec">位移科技</div>' + sw('fly', '飞天（跳跃升/下蹲降）') + sw('under', '遁地') + sw('superJump', '超级跳') +
+      '<div class="cx-line"><label>移动速度</label><div class="cx-range"><input id="cx-speed" type="range" min="1" max="6" step=".1"><output id="cx-speed-v"></output></div></div>' +
+      '<div class="cx-line"><label>跳跃倍率</label><div class="cx-range"><input id="cx-jumpmul" type="range" min="1" max="4" step=".1"><output id="cx-jumpmul-v"></output></div></div>' +
+      '<div class="cx-line"><label>遁地深度</label><div class="cx-range"><input id="cx-underdepth" type="range" min="1" max="8" step=".5"><output id="cx-underdepth-v"></output></div></div>' +
+      '<div class="cx-line"><label>瞬移</label><button class="cx-act" id="cx-tp">到敌人身后</button></div>';
+    rows += '<div class="cx-sec">战斗科技</div>' + sw('infAmmo', '无限弹药') + sw('god', '无敌') + sw('freeze', '冻结敌人') + sw('slowmo', '子弹时间') +
+      '<div class="cx-tip">无敌拦在扣血入口，爆头/爆炸也无效；冻结后敌人原地不动但仍可被击杀。</div>';
 
     panel.innerHTML = '<div id="cx-head"><div><b>辅助终端</b><small>SANDSTORM</small></div><button id="cx-hide">–</button></div>' +
       '<div class="cx-body">' + rows + '<div class="cx-sec" id="cx-stat">—</div></div>';
@@ -91,8 +101,33 @@
     }
     slider('cx-trackrange', 'trackRange', function (v) { return v + 'm'; });
     slider('cx-speed', 'speed', function (v) { return (+v).toFixed(1) + '×'; });
+    slider('cx-jumpmul', 'jumpMul', function (v) { return (+v).toFixed(1) + '×'; });
+    slider('cx-underdepth', 'underDepth', function (v) { return v + 'm'; });
+    document.getElementById('cx-tp').addEventListener('click', function () {
+      var g = engine && engine.game; if (!g || !g.player || !g.player.alive) return;
+      var t = pickTarget(g, g.player, g.player.pos); if (!t) return;
+      var p = g.player;
+      var dx = t.x - p.pos.x, dz = t.z - p.pos.z, L = Math.hypot(dx, dz) || 1;
+      p.pos.x = t.x + dx / L * 1.4; p.pos.z = t.z + dz / L * 1.4; p.pos.y = Math.max(0, t.y - 1.15);
+      p.vel.set(0, 0, 0); p.onGround = true;
+    });
     document.getElementById('cx-hide').addEventListener('click', function (e) { e.stopPropagation(); setShow(false); });
-    fab.addEventListener('click', function () { setShow(true); });
+    fab.addEventListener('click', function (e) { e.stopPropagation(); setShow(true); });
+    fab.addEventListener('touchend', function (e) { e.preventDefault(); e.stopPropagation(); setShow(true); }, { passive: false });
+    document.getElementById('cx-hide').addEventListener('touchend', function (e) { e.preventDefault(); e.stopPropagation(); setShow(false); }, { passive: false });
+    /* 手机：pointerup 直接触发一次动作，随后浏览器合成的 click 被时间戳拦掉，避免点一次翻两次 */
+    document.addEventListener('pointerup', function (e) {
+      if (e.pointerType !== 'touch' || !e.target || !e.target.closest) return;
+      var fabBtn = e.target.closest('#cx-fab');
+      if (fabBtn) { e.preventDefault(); setShow(true); fabBtn.__cxT = performance.now(); return; }
+      if (!panel || !panel.classList.contains('on')) return;
+      var b = e.target.closest('#cx-win button'); if (!b) return;
+      e.preventDefault(); b.click(); b.__cxT = performance.now();
+    }, { capture: true, passive: false });
+    document.addEventListener('click', function (e) {
+      var b = e.target && e.target.closest ? e.target.closest('#cx-win button, #cx-fab') : null;
+      if (b && b.__cxT && performance.now() - b.__cxT < 700) { e.preventDefault(); e.stopImmediatePropagation(); }
+    }, { capture: true, passive: false });
     drag(panel, document.getElementById('cx-head'));
     sync(); setShow(cfg.show);
   }
@@ -123,6 +158,12 @@
     cfg.show = on;
     panel.classList.toggle('on', on);
     fab.classList.toggle('on', on);
+    var tr = document.getElementById('cx-touch');
+    if (tr) tr.style.pointerEvents = on ? 'none' : '';
+    try {
+      var btns = document.querySelectorAll('#cx-touch .cx-btn, #cx-touch #cx-stick, #cx-touch #cx-look');
+      for (var i = 0; i < btns.length; i++) btns[i].style.pointerEvents = on ? 'none' : 'auto';
+    } catch (e) {}
     save();
     if (!isTouchDev() && typeof Input !== 'undefined') {
       try {
@@ -238,16 +279,82 @@
   }
 
   /* ---------------------------------------------------------------- 逻辑 */
-  function tick() {
+  var flyY = null, wrapped = null;
+
+  function applyWrappers(g) {
+    var p = g.player;
+    /* 移速：velMod 会被游戏钳回 1，改为把每 tick 的实际位移按倍率放大 */
+    if (p && !p.__cxSim) {
+      var origSim = p.simulate.bind(p);
+      p.simulate = function (dt) {
+        var x0 = this.pos.x, z0 = this.pos.z, wasGround = this.onGround;
+        origSim(dt);
+        if (cfg.speed > 1 && this.alive) {
+          this.pos.x = x0 + (this.pos.x - x0) * cfg.speed;
+          this.pos.z = z0 + (this.pos.z - z0) * cfg.speed;
+        }
+        if (cfg.superJump && this.cmd.jumpPressed && wasGround && this.vel.y > 0) this.vel.y *= cfg.jumpMul;
+      };
+      p.__cxSim = true;
+    }
+    /* 无敌：拦在 applyDamage 入口，任何伤害都不结算 */
+    if (!g.__cxDmg) {
+      var origDmg = g.applyDamage.bind(g);
+      g.applyDamage = function (v) {
+        if (cfg.god && v === this.player) { v.hp = 100; v.armor = 100; v.alive = true; return; }
+        return origDmg.apply(null, arguments);
+      };
+      g.__cxDmg = true;
+    }
+    /* 冻结敌人：跳过 AI tick，玩家仍可杀它们 */
+    for (var i = 0; i < g.actors.length; i++) {
+      var a = g.actors[i];
+      if (!a.brain || a.brain.__cxFrozen) continue;
+      a.brain.__cxFrozen = true;
+      var ob = a.brain.tick.bind(a.brain);
+      a.brain.__origTick = ob;
+      a.brain.tick = function (dt) {
+        if (cfg.freeze) { this.a.cmd.fwd = 0; this.a.cmd.side = 0; this.a.cmd.attack = false; this.a.cmd.attackPressed = false; return; }
+        return ob(dt);
+      };
+    }
+    /* 子弹时间：隔 tick 推进，整体变慢 */
+    if (!g.__cxTick) {
+      var origTick = g.tick.bind(g), acc = 0;
+      g.tick = function (dt) {
+        if (cfg.slowmo) { acc += dt; if (acc < 0.034) return; acc = 0; }
+        return origTick(dt);
+      };
+      g.__cxTick = true;
+    }
+  }
+
+  function tick(dt) {
     var g = engine && engine.game;
     if (!g || !g.player) return;
     installTrack(g);
-    if (g.infiniteAmmo !== cfg.infAmmo) g.infiniteAmmo = cfg.infAmmo;
+    applyWrappers(g);
     var p = g.player;
-    p.velMod = Math.max(1, cfg.speed);
-    if (cfg.god) { p.hp = 100; if (p.armor < 100) p.armor = 100; }
+
+    if (cfg.infAmmo) {
+      g.infiniteAmmo = true;
+      var w = p.weapon;
+      if (w && w.def && !p.reloading) { w.mag = w.def.mag; w.reserve = Math.max(w.reserve, w.def.reserve || 0); }
+    } else if (g.infiniteAmmo) g.infiniteAmmo = false;
+
+    if (cfg.god) { p.hp = 100; p.armor = 100; }
+    if (cfg.under) {
+      p.pos.y = -Math.abs(cfg.underDepth); p.vel.y = 0; p.onGround = false; flyY = null;
+    } else if (cfg.fly) {
+      if (flyY == null) flyY = p.pos.y;
+      if (p.cmd.jump) flyY += cfg.flySpeed * dt;
+      if (p.cmd.duck) flyY -= cfg.flySpeed * dt;
+      flyY = Math.min(70, Math.max(0.6, flyY));
+      p.pos.y = flyY; p.vel.y = 0; p.onGround = false;
+    } else flyY = null;
+
     var st = document.getElementById('cx-stat');
-    if (st) st.textContent = '敌人 ' + enemies(g).length + ' · 追踪 ' + (cfg.track ? '开' : '关') + ' · 穿墙 ' + (cfg.wallbang ? '开' : '关');
+    if (st) st.textContent = '敌人 ' + enemies(g).length + ' · 追踪 ' + (cfg.track ? '开' : '关') + ' · 穿墙 ' + (cfg.wallbang ? '开' : '关') + (cfg.fly ? ' · 飞天' : '') + (cfg.under ? ' · 遁地' : '');
   }
 
   function enemies(g) {
@@ -256,11 +363,13 @@
     return out;
   }
 
+  var lastT = 0;
   function loop(t) {
     requestAnimationFrame(loop);
     engine = window.__engine || engine;
     if (!engine || !panel) return;
-    tick();
+    var dt = lastT ? Math.min(0.05, (t - lastT) / 1000) : 0.016; lastT = t;
+    tick(dt);
     drawESP();
   }
 
